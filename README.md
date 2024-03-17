@@ -2,7 +2,7 @@
 # On Jetson Nano
 # Learning
 Usage:
-```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name```<br>
+```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name>```<br>
 For example, 
 ```python3 pynvrebel.py --input c.png --layers 16 --learn "c"```<br>
 
