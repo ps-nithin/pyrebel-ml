@@ -12,8 +12,8 @@ Usage:
 For example, 
 ```python3 pynvrebel.py --input images/c_ripple.png --layers 16 --recognize 1```<br>
 # Note
-Input image file for learning should contain a single blob of what is to be learned.
-
+1. Input image file for learning should contain a single blob of what is to be learned.
+2. Learned knowledge is stored in 'know_base.pkl'.
 # Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel/blob/main/abstract.pdf">here</a>
 
 # Let the data shine!
