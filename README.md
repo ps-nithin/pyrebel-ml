@@ -1,4 +1,4 @@
-# pyrebel
+# pyrebel-ml
 # On Jetson Nano
 # Learning
 Usage:
