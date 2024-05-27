@@ -17,7 +17,7 @@ Layers of signatures is obtained for the input data. It is then compared to know
 
 The program is implemented in python and runs on a gpu.
 
-# Learning 
+# Learning
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
 
 ```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name>```
