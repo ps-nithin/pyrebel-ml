@@ -13,15 +13,13 @@ The program is implemented in python and tested to run on nvidia jetson nano / o
 # Learning 
 Patterns and figures have a definite boundary. Each boundary is represented by a signature. Not a single signature but layers of signatures ranging from the most abstract to the least abstract representaion. 
 
-# Recognition
-Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
-
-# Learning
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
 
 ```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name>```
 
 # Recognition
+Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
+
 Running the following command reads the input file, obtains signatures upto the layers specified and compares it with the knowledge base to identify any learned patterns. The recognized symbols are then displayed.
 
 ```python3 pynvrebel.py --input <filename.png> --layer <layers> --recognize 1```
