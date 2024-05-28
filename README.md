@@ -19,7 +19,7 @@ Running the following command reads the input file to obtain signatures upto the
 
 For example, running the following command
 ```python3 pynvrebel.py --input images/c.png --layer 20 --learn "c"```
-learns the input image and labels it with the symbol "c".
+the program updates the knowledge base with the signatures found the input image and links with the symbol "c".
 
 
 # Recognition
