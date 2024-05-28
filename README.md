@@ -15,7 +15,7 @@ Patterns and figures have a definite boundary. Each boundary is represented by a
 # Recognition
 Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
 
-The program is implemented in python and runs on a gpu.
+The program is implemented in python and tested to run on nvidia jetson nano / orin nano devices. The program uses numba python library for using cuda.
 
 # Learning
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
