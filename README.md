@@ -17,6 +17,11 @@ Running the following command reads the input file to obtain signatures upto the
 
 ```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name>```
 
+For example, running the following command
+```python3 pynvrebel.py --input images/c.png --layer 20 --learn "c"```
+learns the input image and labels it with the symbol "c".
+
+
 # Recognition
 Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
 
