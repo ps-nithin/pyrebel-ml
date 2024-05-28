@@ -8,14 +8,13 @@ The program consists of three parts
 2. Learning. Creating a knowledge base based on the abstract information obtained.
 3. Recognition. Using the abstract data stored in knowledge base to recognize novel inputs.
 # Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel/blob/main/abstract.pdf">here</a>
+The program is implemented in python and tested to run on nvidia jetson nano / orin nano devices. The program uses numba python library for using cuda.
 
 # Learning 
 Patterns and figures have a definite boundary. Each boundary is represented by a signature. Not a single signature but layers of signatures ranging from the most abstract to the least abstract representaion. 
 
 # Recognition
 Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
-
-The program is implemented in python and tested to run on nvidia jetson nano / orin nano devices. The program uses numba python library for using cuda.
 
 # Learning
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
