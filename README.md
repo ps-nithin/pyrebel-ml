@@ -19,7 +19,6 @@ Running the following command reads the input file to obtain signatures upto the
 
 For example, running the command ```python3 pynvrebel.py --learn images/c.png --layer 20``` learns the file c.png.
 Running the command ```python3 pynvrebel.py --learn images/letters_standard/ --learn 20``` learns all the files in the directory images/letters_standard/.
-```
 The program updates the knowledge base with the signatures found the input image.
 
 
