@@ -15,11 +15,12 @@ Patterns and figures have a definite boundary. Each boundary is represented by a
 
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
 
-```python3 pynvrebel.py --input <filename.png> --layer <layers> --learn <symbol name>```
+```python3 pynvrebel.py --learn <filename.png> or <path/to/learn/> --layer <layers>```
 
-For example, running the following command
-```python3 pynvrebel.py --input images/c.png --layer 20 --learn "c"```
-the program updates the knowledge base with the signatures found the input image and links with the symbol "c".
+For example, running the command ```python3 pynvrebel.py --learn images/c.png --layer 20``` learns the file c.png.
+Running the command ```python3 pynvrebel.py --learn images/letters_standard/ --learn 20``` learns all the files in the directory images/letters_standard/.
+```
+The program updates the knowledge base with the signatures found the input image.
 
 
 # Recognition
