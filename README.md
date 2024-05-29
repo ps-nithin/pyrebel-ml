@@ -25,7 +25,7 @@ Layers of signatures is obtained for the input data. It is then compared to know
 
 Running the following command reads the input file, obtains signatures upto the layers specified and compares it with the knowledge base to identify any learned patterns. The recognized symbols are then displayed.
 
-```python3 pynvrebel.py --input <filename.png> --layer <layers> --recognize 1```
+```python3 pynvrebel.py --recognize <filename.png> --layer <layers>```
 
 For example, running the following command
 ```python3 pynvrebel.py --recognize images/c_ripple.png --layer 20```
