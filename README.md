@@ -28,5 +28,5 @@ Running the following command reads the input file, obtains signatures upto the 
 ```python3 pynvrebel.py --input <filename.png> --layer <layers> --recognize 1```
 
 For example, running the following command
-```python3 pynvrebel.py --input images/c_ripple.png --layer 20 --recognize 1```
+```python3 pynvrebel.py --recognize images/c_ripple.png --layer 20```
 the program checks the signatures in the input image with the knowledge base and displays the recognized symbols, if any.
