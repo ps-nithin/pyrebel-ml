@@ -1,5 +1,4 @@
 # pyrebel-ml
-# On Jetson Nano
 
 Machine learning using an alternative approach without using neural nets. This method uses a logical approach to machine learning.
 
