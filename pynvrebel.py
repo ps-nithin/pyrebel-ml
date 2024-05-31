@@ -34,6 +34,13 @@ import numpy as np
 import cmath
 from PIL import Image
 import os.path
+import os
+from collections import Counter
+
+os.environ['NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS']="0"
+#from numba.core.errors import NumbaPerformanceWarning
+#import warnings
+#warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
 
 parser=argparse.ArgumentParser()
 parser.add_argument("-i","--input",help="Input file name. Defaults to camera stream.")
@@ -41,10 +48,10 @@ parser.add_argument("-t","--threshold",type=int,help="Threshold. Higher number g
 parser.add_argument("-b","--blob",type=int,help="Selects the blob.")
 parser.add_argument("-o","--output",help="Output filename.")
 parser.add_argument("-l","--layer",type=int,help="Selects the layer of bound abstraction.")
-parser.add_argument("-c","--counter",type=int,help="Selects counter.")
 parser.add_argument("-n","--learn",help="Name of signature.")
 parser.add_argument("-r","--recognize",help="Recognize the signature.")
-
+parser.add_argument("-v","--vocabulary",help="Prints learned symbols.")
+parser.add_argument("-c","--camera",help="Stream from camera.")
 # create video sources & outputs
 input = videoSource("csi://0", options={'width':320,'height':240,'framerate':30,'flipMethod':'rotate-270'})
 output = videoOutput("", argv=sys.argv)
@@ -52,6 +59,10 @@ output = videoOutput("", argv=sys.argv)
 if not os.path.exists('know_base.pkl'):
     fp=open('know_base.pkl','x')
     fp.close()
+if not os.path.exists('vocabulary.pkl'):
+    fp=open('vocabulary.pkl','x')
+    fp.close()
+
 
 import pickle
 with open("know_base.pkl","rb") as fpr:
@@ -59,17 +70,67 @@ with open("know_base.pkl","rb") as fpr:
         know_base=pickle.load(fpr)
     except EOFError:
         know_base={}
+with open("vocabulary.pkl","rb") as fpr:
+    try:
+        vocabulary=pickle.load(fpr)
+    except EOFError:
+        vocabulary=set()
+
 
 # process frames until EOS or the user exits
 def main():
-    n=0
     args=parser.parse_args()
+    if args.vocabulary:
+        print(vocabulary)
+        return
+    if args.threshold:
+        thresh=args.threshold
+    else:
+        thresh=32
+    if args.blob:
+        blob_index=args.blob
+    else:
+        blob_index=1
+    if args.layer:
+        layer_n=args.layer
+    else:
+        layer_n=0
+    if args.recognize:
+        recognize=1
+        recognized=list()
+    else:
+        recognize=0
+    if args.output:
+        out_loc=args.output
+    else:
+        out_loc="output.png"
+    if args.learn:
+        learn_n=0
+        if args.learn[-4:]=='.png':
+            learn_single=True
+            sign_name=args.learn
+            ip_files_n=1
+        else:
+            learn_single=False
+            ip_files=os.listdir(args.learn)
+            ip_files_n=len(ip_files)
+
+
+
     while True:
         start_time=time.time()
         init_time=time.time()
-        if args.input:
-            img_array=open_image(args.input).astype('int')
-        else:
+
+        if args.learn:
+            if learn_single:
+                img_array=open_image(args.learn).astype('int32')
+            else:
+                sign_name=ip_files[learn_n]
+                img_array=open_image(args.learn+ip_files[learn_n]).astype('int32')
+        elif args.recognize:
+            img_array=open_image(args.recognize).astype('int32')
+
+        if args.camera:
             # capture the next image
             img = input.Capture()
             if img is None: # timeout
@@ -77,36 +138,8 @@ def main():
             img_gray=convert_color(img,'gray8')
             img_array=cudaToNumpy(img_gray)
             cudaDeviceSynchronize()
-            img_array=img_array.reshape(1,img_array.shape[0],img_array.shape[1])[0].astype('int')
+            img_array=img_array.reshape(1,img_array.shape[0],img_array.shape[1])[0].astype('int32')
         
-        if args.threshold:
-            thresh=args.threshold
-        else:
-            thresh=32
-        if args.blob:
-            blob_index=args.blob
-        else:
-            blob_index=0
-        if args.layer:
-            layer_n=args.layer
-        else:
-            layer_n=0
-        if args.counter:
-            counter=args.counter
-        else:
-            counter=0
-        if args.learn:
-            sign_name=args.learn
-        if args.recognize:
-            recognize=1
-            recognized=set()
-        else:
-            recognize=0
-        if args.output:
-            out_loc=args.output
-        else:
-            out_loc="output.png"
-
         """
         img_array=np.full([5,5],0,dtype=np.int)
         img_array[1][2]=5
@@ -126,7 +159,7 @@ def main():
 
         scaled_shape=np.array([img_array.shape[0]*3,img_array.shape[1]*3])
         scaled_shape_d=cuda.to_device(scaled_shape)
-        img_scaled_d=cuda.device_array(scaled_shape,dtype=np.int)
+        img_scaled_d=cuda.device_array(scaled_shape,dtype=np.int32)
         scale_img_cuda[blockspergrid,threadsperblock](img_fenced_d,img_scaled_d)
         cuda.synchronize()
         img_scaled_h=img_scaled_d.copy_to_host()
@@ -135,11 +168,11 @@ def main():
         blockspergrid_x=math.ceil(scaled_shape[0]/threadsperblock[0])
         blockspergrid_y=math.ceil(scaled_shape[1]/threadsperblock[1])
         blockspergrid=(blockspergrid_x,blockspergrid_y)
-        img_boundary=np.full(scaled_shape,500,dtype=np.int)
+        img_boundary=np.full(scaled_shape,500,dtype=np.int32)
         img_boundary_d=cuda.to_device(img_boundary)
         read_bound_cuda[blockspergrid,threadsperblock](img_scaled_d,img_boundary_d)
         cuda.synchronize()
-        bound_info=np.zeros([scaled_shape[0]*scaled_shape[1],2],dtype=np.int)
+        bound_info=np.zeros([scaled_shape[0]*scaled_shape[1],2],dtype=np.int32)
         bound_info_d=cuda.to_device(bound_info)
         threadsperblock=(16,16)
         blockspergrid_x=math.ceil(scaled_shape[0]/threadsperblock[0])
@@ -170,25 +203,25 @@ def main():
         nz_si_cum=np.delete(np.insert(nz_si_cum_,0,0),-1)
         nz_si_cum_d=cuda.to_device(nz_si_cum)
 
-        bound_data_d=cuda.device_array([nz_s_cum_[-1]],dtype=np.int)
+        bound_data_d=cuda.device_array([nz_s_cum_[-1]],dtype=np.int32)
         get_bound_data_init[math.ceil(len(nz_a)/256),256](nz_a_d,nz_s_cum_d,img_boundary_d,bound_data_d)
         cuda.synchronize()
 
-        dist_data_d=cuda.device_array([nz_s_cum_[-1]],dtype=np.float)
+        dist_data_d=cuda.device_array([nz_s_cum_[-1]],dtype=np.float64)
         get_dist_data_init[math.ceil(nz_s_cum_[-1]/256),256](bound_data_d,img_boundary_d,dist_data_d)
         cuda.synchronize()
         
-        max_dist_d=cuda.device_array([len(nz_s),2],dtype=np.int)
+        max_dist_d=cuda.device_array([len(nz_s),2],dtype=np.int32)
         get_max_dist[math.ceil(len(nz_s)/1),1](nz_s_cum_d,nz_s_d,bound_data_d,dist_data_d,max_dist_d)
         cuda.synchronize()
 
-        bound_data_ordered_d=cuda.device_array([nz_si_cum_[-1]],dtype=np.int)
-        bound_abstract=np.zeros([nz_si_cum_[-1]],dtype=np.int)
+        bound_data_ordered_d=cuda.device_array([nz_si_cum_[-1]],dtype=np.int32)
+        bound_abstract=np.zeros([nz_si_cum_[-1]],dtype=np.int32)
         bound_abstract_d=cuda.to_device(bound_abstract)
         bound_threshold=np.zeros([nz_si_cum_[-1]],dtype=np.float64)
-        bound_mark_d=cuda.device_array([nz_si_cum_[-1]],dtype=np.int)
+        bound_mark_d=cuda.device_array([nz_si_cum_[-1]],dtype=np.int32)
         bound_threshold_d=cuda.to_device(bound_threshold)
-        ba_size=np.zeros([nz_si_cum_[-1]],dtype=np.int)
+        ba_size=np.zeros([nz_si_cum_[-1]],dtype=np.int32)
         ba_size_d=cuda.to_device(ba_size)
         get_bound_data_order[math.ceil(len(nz_a)/256),256](max_dist_d,nz_si_cum_d,img_boundary_d,bound_abstract_d,bound_data_ordered_d,bound_threshold_d,bound_mark_d,ba_size_d,thresh)
         cuda.synchronize()
@@ -210,7 +243,7 @@ def main():
 
         ba_max_pd=np.zeros([len(nz_ba_h),2],np.float64)
         ba_max_pd_d=cuda.to_device(ba_max_pd)
-        out_image=np.zeros(scaled_shape,dtype=np.int)
+        out_image=np.zeros(scaled_shape,dtype=np.int32)
         out_image_d=cuda.to_device(out_image)
         n=0
         draw_pixels_cuda(bound_data_ordered_d,100,out_image_d)
@@ -240,6 +273,8 @@ def main():
 
         
         #print("init layer",nz_ba_size_h)
+        sign_layer_union=[]
+        inv_sign=1
         while 1:
             find_ba_max_pd[len(nz_ba_h),1](nz_ba_d,nz_ba_size_d,bound_data_ordered_d,ba_max_pd_d,scaled_shape_d)
             cuda.synchronize()
@@ -262,63 +297,45 @@ def main():
             
             ba_change=np.zeros([len(nz_ba_h)],dtype=np.float64)
             ba_change_d=cuda.to_device(ba_change)
-
-            find_change[len(nz_ba_h),1](nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scaled_shape,ba_change_d)
+            ba_sign=np.zeros([len(nz_ba_h)],dtype=np.int32)
+            ba_sign_d=cuda.to_device(ba_sign)
+            find_change[len(nz_ba_h),1](nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scaled_shape,ba_change_d,ba_sign_d)
+            cuda.synchronize()
             ba_change_h=ba_change_d.copy_to_host()
-            
-            multiplier=10
+            ba_sign_h=ba_sign_d.copy_to_host()
+            select_ba_change=ba_change_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
+            select_ba_sign=ba_sign_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]-1]
+            cur_sign_list=set()
+            print(n,": ",end="")
+            if len(select_ba_sign)==3:
+                if select_ba_sign[0]<0:
+                    inv_sign=-1
+            for i in range(len(select_ba_sign)):
+                cur_sign=right_rotate(select_ba_sign,i,inv_sign)
+                sign=''.join("0" if sign_<0 else "1" for sign_ in cur_sign)
+                if sign[0]=="1" and sign[0]!=sign[-1] or len(sign)==3:
+                    #print(sign,end=" ")
+                    cur_sign_list.add(sign)
+                    cur_sign_list.add(inverse_sign(sign))
+            print(cur_sign_list)
+            sign_name_layer=nz_ba_size_h[blob_index]
+            #print("layer",n,":",nz_ba_size_h)
             if learn:
-                blob_index=1
-                select_ba_change=ba_change_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
-                for s in select_ba_change:
-                    sign_key_ceil=int(multiplier*math.ceil(s/multiplier))
-                    sign_key_floor=int(multiplier*math.floor(s/multiplier))
-
-                    if sign_key_ceil in know_base:
-                        know_base[sign_key_ceil].add(sign_name)
+                for cur_sign in cur_sign_list:
+                    if cur_sign in know_base:
+                        if sign_name in know_base[cur_sign]:
+                            know_base[cur_sign][sign_name]+=1
+                        else:
+                            know_base[cur_sign][sign_name]=1
                     else:
-                        know_base[sign_key_ceil]=set()
-                        know_base[sign_key_ceil].add(sign_name)
-                    if sign_key_floor in know_base:
-                        know_base[sign_key_floor].add(sign_name)
-                    else:
-                        know_base[sign_key_floor]=set()
-                        know_base[sign_key_floor].add(sign_name)
+                        know_base[cur_sign]={sign_name:1}
 
             if recognize:
-                blob_index=1
-                select_ba_change=ba_change_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
-                if recognize_init:
-                    sign_key_ceil=int(multiplier*math.ceil(select_ba_change[0]/multiplier))
-                    sign_key_floor=int(multiplier*math.floor(select_ba_change[0]/multiplier))
-                    recognized_ceil=set()
-                    recognized_floor=set()
-                    if sign_key_ceil in know_base:
-                        recognized_ceil=know_base[sign_key_ceil]
-                    if sign_key_floor in know_base:
-                        recognized_floor=know_base[sign_key_floor]
+                for cur_sign in cur_sign_list:
+                    if cur_sign in know_base:
+                        sign_recognized=list(know_base[cur_sign].keys())
+                        recognized=recognized+sign_recognized
 
-                    recognized=recognized_ceil.union(recognized_floor)
-                    if len(recognized)==0:
-                        break
-                    recognize_init=0
-
-                for s in select_ba_change:
-                    sign_key_ceil=int(multiplier*math.ceil(s/multiplier))
-                    sign_key_floor=int(multiplier*math.floor(s/multiplier))
-                    sign_ceil=set()
-                    sign_floor=set()
-                    if sign_key_ceil in know_base:
-                        sign_ceil=know_base[sign_key_ceil]
-                    if sign_key_floor in know_base:
-                        sign_floor=know_base[sign_key_floor]
-                    sign_union=sign_ceil.union(sign_floor)
-                    
-                    if len(sign_union)>0:
-                        recognized=recognized.intersection(sign_union)
-                    else:
-                        break
-            #print("layer",n,":",nz_ba_size_h)
             if n==layer_n:
                 select_ba=nz_ba_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
                 select_ba_d=cuda.to_device(select_ba)
@@ -327,17 +344,19 @@ def main():
                 draw_pixels_from_indices_cuda(select_ba_d,bound_data_ordered_d,255,out_image_d)
                 
                 select_ba_change=ba_change_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
-                print("layer=",n,"len(signature)=",len(select_ba_change)-1,"\n",select_ba_change[:-1])
-                
+                #print("layer=",n,"len(signature)=",len(select_ba_change)-1,"\n",select_ba_change[:-1])
                 break
             n+=1
         
         if recognize:
-            print("Recognized:",recognized)
+            print("Recognized:",Counter(recognized))
 
         fpr.close()
         with open('know_base.pkl','wb') as fpw:
             pickle.dump(know_base,fpw)
+        with open('vocabulary.pkl','wb') as fpw:
+            pickle.dump(vocabulary,fpw)
+
         print("len(know_base)=",len(know_base))
         out_image_h=out_image_d.copy_to_host()
         #img_boundary_h=img_boundary_d.copy_to_host()
@@ -347,13 +366,32 @@ def main():
         output_png=cudaToNumpy(img_boundary_cuda_rgb)
         write_image(out_loc,output_png)
         # render the image
-        output.Render(img_boundary_cuda_rgb)
+        #output.Render(img_boundary_cuda_rgb)
         # exit on input/output EOS
         #if not input.IsStreaming() or not output.IsStreaming():
         #    break
-        n+=1
+        
         print("Finished in total of",time.time()-init_time,"seconds at",float(1/(time.time()-init_time)),"fps count=",n)
-        break
+        if args.learn:
+            learn_n+=1
+            if learn_n==ip_files_n:
+                break
+        else:
+            break
+        
+def rotate_left(lst,n):
+    return lst[n:]+lst[:n]
+
+def right_rotate(lst, n, inv_sign):
+    # Convert the list to a numpy array
+    arr = np.array(lst)
+    arr=arr*inv_sign
+    # Use np.roll to shift the elements to the right
+    arr = np.roll(arr, n)
+    # Convert the numpy array back to a list
+    arr = arr.tolist()
+    # Return the rotated list
+    return arr
 
 @cuda.jit
 def find_next_ba(ba_max_pd_d,nz_ba_size_d,nz_ba_size_cum_d,bound_abstract_d):
@@ -417,11 +455,34 @@ def find_ba_max_pd(nz_ba_d,nz_ba_size_d,bound_data_ordered_d,ba_max_pd_d,scaled_
         cuda.atomic.add(ba_size_d,seed_,1)
     """
 
-
+def arrange_sign(sign_array):
+    sign_list=sign_array.tolist()
+    while 1:
+        if sign_list.count(1)==len(sign_list) or sign_list.count(-1)==len(sign_list) or sign_list[0]!=sign_list[-1]:
+            break
+        sign_list.append(sign_list[0])
+        sign_list.pop(0)
+    return sign_list
 
 
 @cuda.jit
-def find_change(nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scaled_shape,ba_change_d):
+def inverse_sign_cuda(array_list):
+    ci=cuda.grid(1)
+    if ci<len(array_list):
+        array_list[ci]*=-1
+    cuda.syncthreads()
+
+def inverse_sign(string):
+    inv=list()
+    for i in string:
+        if int(i)==0:
+            inv.append("1")
+        else:
+            inv.append("0")
+    return ''.join(inv)
+
+@cuda.jit
+def find_change(nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scaled_shape,ba_change_d,ba_sign_d):
     ci=cuda.grid(1)
     if ci<len(nz_ba_size_d):
         n=nz_ba_size_cum_d[ci]
@@ -440,7 +501,10 @@ def find_change(nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scale
         angle_cur=math.atan2(np.float64(b1-c1),np.float64(b0-c0))*180/math.pi
         diff=angle_diff(angle_pre,angle_cur)
         ba_change_d[n]=diff
-
+        if diff<0:
+            ba_sign_d[n]=-1
+        elif diff>0:
+            ba_sign_d[n]=1
         n=nz_ba_size_cum_d[ci]+1
         s=0
         while 1:
@@ -460,6 +524,10 @@ def find_change(nz_ba_size_d,nz_ba_size_cum_d,nz_ba_d,bound_data_ordered_d,scale
             angle_cur=math.atan2(np.float64(b1-c1),np.float64(b0-c0))*180/math.pi
             diff=angle_diff(angle_pre,angle_cur)
             ba_change_d[n+s]=diff
+            if diff<0:
+                ba_sign_d[n+s]=-1
+            elif diff>0:
+                ba_sign_d[n+s]=1
             s+=1
 
 
