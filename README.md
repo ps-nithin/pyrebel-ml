@@ -6,7 +6,7 @@ The program consists of three parts
 1. Forming an abstract representation of data which is used to obtain meaningful information from the input.
 2. Learning. Creating a knowledge base based on the abstract information obtained.
 3. Recognition. Using the abstract data stored in knowledge base to recognize novel inputs.
-# Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel/blob/main/abstract.pdf">here</a>
+# Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel/blob/main/abstract2.pdf">here</a>
 The program is implemented in python and tested to run on nvidia jetson nano / orin nano devices. The program uses numba python library for using cuda.
 
 # Learning 
