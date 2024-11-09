@@ -1,6 +1,6 @@
 # pyrebel-ml
 
-Machine learning using an alternative approach without using neural nets. This method uses a logical approach to machine learning.
+Machine learning using an alternative approach without using neural nets. This method uses data abstraction for machine learning.
 
 The program consists of three parts
 1. Forming an abstract representation of data which is used to obtain meaningful information from the input.
