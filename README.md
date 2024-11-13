@@ -16,8 +16,8 @@ Running the following command reads the input file to obtain signatures upto the
 
 ```python3 pyvision.py --learn <filename.png> or <path/to/learn/>```
 
-For example, running the command ```python3 pynvrebel.py --learn images/c.png``` learns the file c.png and links the signatures with the symbol "c.png".
-<br>Similarly, running the command ```python3 pynvrebel.py --learn images/letters_standard/``` learns all the files in the directory images/letters_standard/.
+For example, running the command ```python3 pyvision.py --learn images/c.png``` learns the file c.png and links the signatures with the symbol "c.png".
+<br>Similarly, running the command ```python3 pyvision.py --learn images/letters_standard/``` learns all the files in the directory images/letters_standard/.
 
 # Recognition
 Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
