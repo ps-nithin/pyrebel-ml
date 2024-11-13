@@ -38,13 +38,10 @@ import os
 from collections import Counter
 from numba import float32,int32
 import numba
-import networkx as nx
 os.environ['NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS']="0"
-os.environ['NUMBA_ENABLE_CUDASIM']="0"
 #from numba.core.errors import NumbaPerformanceWarning
 #import warnings
 #warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
-from pdb import set_trace
 
 parser=argparse.ArgumentParser()
 parser.add_argument("-i","--input",help="Input file name. Defaults to camera stream.")
@@ -130,9 +127,9 @@ def main():
 
     if args.learn:
         learn_n=0
-        if args.learn[-4:]=='.png':
+        if args.learn[-1]!='/':
             learn_single=True
-            sign_name=args.learn
+            sign_name=args.learn.split("/")[-1]
             ip_files_n=1
         else:
             learn_single=False
@@ -178,7 +175,7 @@ def main():
         img_array[2][1]=5
         """
         img_array_d=cuda.to_device(img_array)
-        shape_d=cuda.to_device(img_array.shape)
+        shape_d=cuda.to_device(np.array(img_array.shape))
 
         quant_img=np.zeros(img_array.shape,dtype=np.int32)
         quant_img_d=cuda.to_device(quant_img)
@@ -196,7 +193,7 @@ def main():
         img_array=quant_img_d.copy_to_host()
         img_array_d=quant_img_d
 
-        threadsperblock=(16,16)
+        threadsperblock=(32,32)
         blockspergrid_x=math.ceil(img_array.shape[0]/threadsperblock[0])
         blockspergrid_y=math.ceil(img_array.shape[1]/threadsperblock[1])
         blockspergrid=(blockspergrid_x,blockspergrid_y)
@@ -225,7 +222,7 @@ def main():
         bound_info_d=cuda.to_device(bound_info)
         seed_map=np.zeros(scaled_shape[0]*scaled_shape[1],dtype=np.int32)
         seed_map_d=cuda.to_device(seed_map)
-        bound_len_low=1500
+        bound_len_low=100
         bound_len_high=5000
         threadsperblock=(16,16)
         blockspergrid_x=math.ceil(scaled_shape[0]/threadsperblock[0])
@@ -240,7 +237,9 @@ def main():
         nz_a=get_non_zeros(a)
         nz_s=get_non_zeros(s)
 
-        
+        if len(nz_s)==0:
+            print("No blobs found.")
+            continue
         print("len(nz_s)=",len(nz_s))
         #nz=np.column_stack((nz_a,nz_s))
         #nz_sort=nz[nz[:,1].argsort()]
@@ -329,6 +328,7 @@ def main():
             if len(nz_a)>0:
                 print("Learning: true")
                 print("Sign name:",sign_name)
+                learn_blob=1
                 learn=1
             else:
                 print("Invalid input")
@@ -354,6 +354,7 @@ def main():
         #print("init layer",nz_ba_size_h)
         sign_layer_union=[]
         inv_sign=1
+        nz_ba_size_cum_pre=nz_ba_size_cum_[-1]
         while 1:
             find_ba_max_pd[len(nz_ba_h),1](nz_ba_d,nz_ba_size_d,bound_data_ordered_d,ba_max_pd_d,scaled_shape_d)
             cuda.synchronize()
@@ -403,28 +404,26 @@ def main():
             #sign_name_layer=nz_ba_size_h[blob_index]
             #print("layer",n,":",nz_ba_size_h)
                 
-            if n==layer_n:
+            if nz_ba_size_cum_[-1]==nz_ba_size_cum_pre:
                 for blob_i in range(len(nz_a)):
                     #print(sorted(cur_sign_list_dict[blob_i],key=len,reverse=True))
-                    cur_sign_list_dict[blob_i]=sorted(list(cur_sign_list_dict[blob_i]),key=len,reverse=True)
+                    cur_sign_list_dict[blob_i]=sorted(list(cur_sign_list_dict[blob_i]),key=len,reverse=False)
                     if learn:
-                        for cur_sign in cur_sign_list_dict[blob_i]:
-                            if cur_sign in know_base:
-                                if sign_name in know_base[cur_sign]:
-                                    know_base[cur_sign][sign_name]+=1
+                        if blob_i==learn_blob:
+                            for cur_sign in cur_sign_list_dict[learn_blob]:
+                                if cur_sign in know_base:
+                                    if sign_name in know_base[cur_sign]:
+                                            know_base[cur_sign][sign_name]+=1
+                                    else:
+                                        know_base[cur_sign][sign_name]=1
                                 else:
-                                    know_base[cur_sign][sign_name]=1
-                            else:
-                                know_base[cur_sign]={sign_name:1}
-
+                                    know_base[cur_sign]={sign_name:1}
+                            print("Signs learned:",len(cur_sign_list_dict[learn_blob]))  
                     if recognize:
                         for cur_sign in cur_sign_list_dict[blob_i]:
                             if cur_sign in know_base:
-                                symbol_recognized=list(know_base[cur_sign].keys())
-                                recognized[blob_i]=symbol_recognized
-                                recognized[blob_i].append("layer"+str(len(cur_sign)))
-                                break
-
+                                symbol_recognized=know_base[cur_sign].keys()
+                                recognized[blob_i]+=symbol_recognized
                 
                 """
                 blob_index=1
@@ -437,20 +436,24 @@ def main():
                 #select_ba_change=ba_change_h[nz_ba_size_cum[blob_index]:nz_ba_size_cum[blob_index]+nz_ba_size_h[blob_index]]
                 #print("layer=",n,"len(signature)=",len(select_ba_change)-1,"\n",select_ba_change[:-1])
                 break
+            else:
+                nz_ba_size_cum_pre=nz_ba_size_cum_[-1]
             n+=1
         
         if recognize:
-            top_blob_i=0
-            top_weight=0
-            for blob_i in range(len(nz_a)):
-                if len(recognized[blob_i])>0 and int(recognized[blob_i][-1][5:])>top_weight:
-                    top_weight=int(recognized[blob_i][-1][5:])
-                    top_blob_i=blob_i
-
-            print("blob:",top_blob_i,recognized[top_blob_i],"confidence:",int(top_weight/30*100))
-            if int(recognized[top_blob_i][-1][5:])>10: 
-                symbol=recognized[top_blob_i][0].split("-")[0]
-                os.system("espeak-ng "+symbol)
+            top_blob_i=-1
+            top_blob_weight=0
+            for blob_i in range(len(recognized)):
+                if len(recognized[blob_i])>0:
+                    blob_i_counter=Counter(recognized[blob_i])
+                    recognized[blob_i]=dict(blob_i_counter.most_common(3))
+                    if blob_i_counter.most_common(1)[0][1]>top_blob_weight:
+                        top_blob_weight=blob_i_counter.most_common(1)[0][1]
+                        top_blob_i=blob_i
+                    #print("Blob:",blob_i,recognized[blob_i])
+            print("Top blob:",top_blob_i,recognized[top_blob_i])
+             
+            #os.system("espeak-ng "+top_sym)
             select_ba=nz_ba_h[nz_ba_size_cum[top_blob_i]:nz_ba_size_cum[top_blob_i]+nz_ba_size_h[top_blob_i]]
             select_ba_d=cuda.to_device(select_ba)
             draw_lines[len(nz_ba_h),1](select_ba_d,bound_data_ordered_d,out_image_d,200)
@@ -508,7 +511,8 @@ def main():
             if learn_n==ip_files_n:
                 break
         if args.recognize and len(args.recognize)>1:
-            continue
+            break
+
 
 @cuda.jit
 def image_diff(img1_d,diff_d):
