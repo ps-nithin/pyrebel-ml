@@ -30,4 +30,4 @@ For example, running the following command
 ```python3 pyvision.py --recognize images/c_ripple.png```
 the program checks the signatures in the input image with the knowledge base and displays the recognized symbols, if any.
 
-# Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel-ml/blob/main/abstract/intro-r2.pdf">here</a>
+# Read more about the methods <a href="https://github.com/ps-nithin/pyrebel-ml/blob/main/abstract/intro-r2.pdf">here</a>
