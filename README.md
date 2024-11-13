@@ -14,20 +14,20 @@ Patterns and figures have a definite boundary. Each boundary is represented by a
 
 Running the following command reads the input file to obtain signatures upto the layers specified and writes it into the knowledge base.
 
-```python3 pynvrebel.py --learn <filename.png> or <path/to/learn/> --layer <layers>```
+```python3 pyvision.py --learn <filename.png> or <path/to/learn/>```
 
-For example, running the command ```python3 pynvrebel.py --learn images/c.png --layer 20``` learns the file c.png and links the signatures with the symbol "c.png".
-<br>Similarly, running the command ```python3 pynvrebel.py --learn images/letters_standard/ --learn 20``` learns all the files in the directory images/letters_standard/.
+For example, running the command ```python3 pynvrebel.py --learn images/c.png``` learns the file c.png and links the signatures with the symbol "c.png".
+<br>Similarly, running the command ```python3 pynvrebel.py --learn images/letters_standard/``` learns all the files in the directory images/letters_standard/.
 
 # Recognition
 Layers of signatures is obtained for the input data. It is then compared to known signatures in the knowledge base to identify the pattern.
 
 Running the following command reads the input file, obtains signatures upto the layers specified and compares it with the knowledge base to identify any learned patterns. The recognized symbols are then displayed.
 
-```python3 pynvrebel.py --recognize <filename.png> --layer <layers>```
+```python3 pyvision.py --recognize <filename.png>```
 
 For example, running the following command
-```python3 pynvrebel.py --recognize images/c_ripple.png --layer 20```
+```python3 pyvision.py --recognize images/c_ripple.png```
 the program checks the signatures in the input image with the knowledge base and displays the recognized symbols, if any.
 
 # Read more about the logic implemented <a href="https://github.com/ps-nithin/pyrebel-ml/blob/main/abstract/intro-r2.pdf">here</a>
